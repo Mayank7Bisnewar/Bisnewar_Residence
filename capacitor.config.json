@@ -1,0 +1,9 @@
+{
+  "appId": "app.lovable.9495444a6f7844149d0ab92b8b465463",
+  "appName": "RentMate",
+  "webDir": "dist",
+  "server": {
+    "url": "https://9495444a-6f78-4414-9d0a-b92b8b465463.lovableproject.com?forceHideBadge=true",
+    "cleartext": true
+  }
+}
