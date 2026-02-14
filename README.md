@@ -1,4 +1,4 @@
-# Rent Manager Pro
+# BISNEWAR RESIDENCE
 
 A powerful and professional rent management application designed to handle tenants, billing, and WhatsApp messaging with ease.
 
@@ -40,11 +40,14 @@ npx cap sync android
 Navigate to the android directory and run the Gradle build.
 ```bash
 cd android
+```
 
-Create the configuration file(First time setup)
+Create the configuration file(First time setup or SKIP)
+```bash
 echo "sdk.dir=$HOME/Library/Android/sdk" > local.properties
-
-# Note: Requires Java 21
+```
+**Step 3: Note: Requires Java 21**
+```bash
 JAVA_HOME=/opt/homebrew/opt/openjdk@21/libexec/openjdk.jdk/Contents/Home ./gradlew assembleDebug
 ```
 
