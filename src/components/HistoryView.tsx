@@ -2,14 +2,18 @@ import React from 'react';
 import { PaymentRecord, Tenant } from '@/types/tenant';
 import { format, parseISO } from 'date-fns';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { History } from 'lucide-react';
+import { History, Trash2 } from 'lucide-react';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import { useBilling } from '@/context/BillingContext';
+import { Button } from '@/components/ui/button';
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 
 interface HistoryViewProps {
     tenant: Tenant;
 }
 
 export function HistoryView({ tenant }: HistoryViewProps) {
+    const { deletePaymentRecord } = useBilling();
     const history = tenant.paymentHistory || [];
 
     // Sort by date descending
@@ -28,12 +32,6 @@ export function HistoryView({ tenant }: HistoryViewProps) {
 
     return (
         <Card className="border-none shadow-none">
-            <CardHeader className="px-0 pt-0">
-                <CardTitle className="text-lg flex items-center gap-2">
-                    <History className="w-5 h-5" />
-                    Payment History
-                </CardTitle>
-            </CardHeader>
             <CardContent className="px-0">
                 <ScrollArea className="h-[400px]">
                     <div className="space-y-3">
@@ -51,10 +49,34 @@ export function HistoryView({ tenant }: HistoryViewProps) {
                                             {record.billingMonth}
                                         </div>
                                     </div>
-                                    <div className="text-right">
+                                    <div className="text-right flex flex-col items-end gap-2">
                                         <div className="font-bold text-primary text-lg">
                                             ₹{record.amount.toLocaleString()}
                                         </div>
+                                        <AlertDialog>
+                                            <AlertDialogTrigger asChild>
+                                                <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive hover:text-destructive hover:bg-destructive/10">
+                                                    <Trash2 className="w-4 h-4" />
+                                                </Button>
+                                            </AlertDialogTrigger>
+                                            <AlertDialogContent>
+                                                <AlertDialogHeader>
+                                                    <AlertDialogTitle>Delete Record?</AlertDialogTitle>
+                                                    <AlertDialogDescription>
+                                                        Are you sure you want to delete this payment record for {record.billingMonth}? This action cannot be undone.
+                                                    </AlertDialogDescription>
+                                                </AlertDialogHeader>
+                                                <AlertDialogFooter>
+                                                    <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                                    <AlertDialogAction
+                                                        onClick={() => deletePaymentRecord(tenant.id, record.id)}
+                                                        className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                                                    >
+                                                        Delete
+                                                    </AlertDialogAction>
+                                                </AlertDialogFooter>
+                                            </AlertDialogContent>
+                                        </AlertDialog>
                                     </div>
                                 </div>
 

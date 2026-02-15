@@ -47,10 +47,12 @@ export function ElectricityTab() {
             <Input
               id="units"
               type="number"
+              inputMode="numeric"
+              pattern="[0-9]*"
               min="0"
               placeholder="Enter electricity units"
               value={electricityUnits || ''}
-              onChange={(e) => handleUnitsChange(e.target.value)}
+              onChange={(e) => handleUnitsChange(e.target.value.replace(/\D/g, ''))}
               className="text-lg h-12 text-center font-medium"
             />
           </div>
@@ -69,7 +71,7 @@ export function ElectricityTab() {
               <div className="text-center mb-3">
                 <p className="text-sm text-muted-foreground">Calculation</p>
                 <p className="font-mono text-lg">
-                  {electricityUnits} units × ₹{ELECTRICITY_RATE} = 
+                  {electricityUnits} units × ₹{ELECTRICITY_RATE} =
                 </p>
               </div>
               <div className="flex items-center justify-center gap-1 text-3xl font-bold text-electricity">

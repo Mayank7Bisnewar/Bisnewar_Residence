@@ -47,10 +47,12 @@ export function ExtraChargesTab() {
               <Input
                 id="extraCharges"
                 type="number"
+                inputMode="numeric"
+                pattern="[0-9]*"
                 min="0"
                 placeholder="0"
                 value={extraCharges || ''}
-                onChange={(e) => handleChargesChange(e.target.value)}
+                onChange={(e) => handleChargesChange(e.target.value.replace(/\D/g, ''))}
                 className="text-lg h-12 pl-10 text-center font-medium"
               />
             </div>

@@ -22,6 +22,7 @@ export function BillSummary() {
     setOwnerInfo,
     generateBillDataForTenant,
     addPaymentRecord,
+    updatePaymentRecord,
   } = useBilling();
   const { toast } = useToast();
 
@@ -33,6 +34,7 @@ export function BillSummary() {
   const [selectedTenantIds, setSelectedTenantIds] = useState<Set<string>>(new Set());
   const [isSendingModalOpen, setIsSendingModalOpen] = useState(false);
   const [historyTenantId, setHistoryTenantId] = useState<string | null>(null);
+  const [syncingTenants, setSyncingTenants] = useState<Set<string>>(new Set());
 
   // Sync local state with context when dialog opens
   React.useEffect(() => {
@@ -49,6 +51,8 @@ export function BillSummary() {
   };
 
   const handleRecordPayment = async (tenantId: string) => {
+    if (syncingTenants.has(tenantId)) return;
+
     const billData = generateBillDataForTenant(tenantId);
     if (!billData) return;
 
@@ -62,57 +66,81 @@ export function BillSummary() {
       record => record.billingMonth === billingMonth
     );
 
-    if (existingPayment) {
+    const scriptUrl = GoogleSheetsService.getScriptUrl();
+
+    if (existingPayment && existingPayment.syncedToSheets) {
       toast({
         title: 'Payment already recorded',
-        description: `A payment for ${billingMonth} already exists.`,
-        variant: 'destructive'
+        description: `A payment for ${billingMonth} is already recorded and synced.`,
+        variant: 'default'
       });
       return;
     }
 
-    const paymentRecord = {
-      date: new Date().toISOString(),
-      amount: billData.totalAmount,
-      rentAmount: billData.monthlyRent,
-      electricityAmount: billData.electricityCharges,
-      waterAmount: billData.waterBill,
-      extraAmount: billData.extraCharges,
-      electricityUnits: billData.electricityUnits,
-      billingMonth: billingMonth,
-    };
+    setSyncingTenants(prev => new Set(prev).add(tenantId));
 
-    // Save to local history
-    addPaymentRecord(tenantId, paymentRecord);
+    try {
+      let paymentRecordId = existingPayment?.id;
 
-    // Send to Google Sheets if configured
-    const scriptUrl = GoogleSheetsService.getScriptUrl();
-    if (scriptUrl) {
-      try {
-        await GoogleSheetsService.appendRow({
-          billedDate: format(billData.billingDate, 'dd/MM/yyyy'),
-          paidDate: format(new Date(), 'dd/MM/yyyy'),
-          tenantName: billData.tenantName,
-          roomNo: billData.roomNumber,
-          rent: billData.monthlyRent,
-          electricityUnits: billData.electricityUnits,
+      if (!existingPayment) {
+        const paymentRecord = {
+          date: new Date().toISOString(),
+          amount: billData.totalAmount,
+          rentAmount: billData.monthlyRent,
           electricityAmount: billData.electricityCharges,
           waterAmount: billData.waterBill,
           extraAmount: billData.extraCharges,
-          totalAmount: billData.totalAmount,
-          remarks: '',
-        });
-        toast({ title: 'Payment recorded and synced to Google Sheets' });
-      } catch (error) {
-        console.error('Sheets sync error:', error);
-        toast({
-          title: 'Payment recorded locally',
-          description: 'Failed to sync to Google Sheets. Check console for details.',
-          variant: 'destructive'
-        });
+          electricityUnits: billData.electricityUnits,
+          billingMonth: billingMonth,
+          syncedToSheets: false,
+        };
+
+        // Save to local history and get the record with its UUID
+        const newRecord = addPaymentRecord(tenantId, paymentRecord);
+        if (newRecord) {
+          paymentRecordId = newRecord.id;
+        }
       }
-    } else {
-      toast({ title: 'Payment recorded locally' });
+
+      // Send to Google Sheets if configured and not already synced
+      if (scriptUrl) {
+        try {
+          await GoogleSheetsService.appendRow({
+            billedDate: format(billData.billingDate, 'dd/MM/yyyy'),
+            paidDate: format(new Date(), 'dd/MM/yyyy'),
+            tenantName: billData.tenantName,
+            roomNo: billData.roomNumber,
+            rent: billData.monthlyRent,
+            electricityUnits: billData.electricityUnits,
+            electricityAmount: billData.electricityCharges,
+            waterAmount: billData.waterBill,
+            extraAmount: billData.extraCharges,
+            totalAmount: billData.totalAmount,
+            remarks: '',
+          });
+
+          if (paymentRecordId) {
+            updatePaymentRecord(tenantId, paymentRecordId, { syncedToSheets: true });
+          }
+
+          toast({ title: 'Payment recorded and synced to Google Sheets' });
+        } catch (error) {
+          console.error('Sheets sync error:', error);
+          toast({
+            title: 'Sync failed',
+            description: 'Payment is kept locally. You can try syncing again later.',
+            variant: 'destructive'
+          });
+        }
+      } else if (!existingPayment) {
+        toast({ title: 'Payment recorded locally' });
+      }
+    } finally {
+      setSyncingTenants(prev => {
+        const next = new Set(prev);
+        next.delete(tenantId);
+        return next;
+      });
     }
   };
 
@@ -230,9 +258,12 @@ export function BillSummary() {
                     <Label htmlFor="ownerMobile">Mobile Number</Label>
                     <Input
                       id="ownerMobile"
+                      type="tel"
+                      inputMode="numeric"
+                      pattern="[0-9]*"
                       placeholder="Your mobile number"
                       value={localOwnerInfo.mobileNumber}
-                      onChange={(e) => setLocalOwnerInfo({ ...localOwnerInfo, mobileNumber: e.target.value })}
+                      onChange={(e) => setLocalOwnerInfo({ ...localOwnerInfo, mobileNumber: e.target.value.replace(/\D/g, '').slice(0, 10) })}
                     />
                   </div>
                   <div className="space-y-2">
@@ -325,14 +356,23 @@ export function BillSummary() {
                 if (!billData) return null;
 
                 return (
-                  <div key={tenant.id} className="flex items-center gap-3 p-4 hover:bg-muted/30 transition-colors">
+                  <div
+                    key={tenant.id}
+                    className="flex items-center gap-3 p-4 hover:bg-muted/30 transition-colors cursor-pointer"
+                    onClick={() => toggleTenant(tenant.id, !selectedTenantIds.has(tenant.id))}
+                  >
                     <Checkbox
                       id={`tenant-${tenant.id}`}
                       checked={selectedTenantIds.has(tenant.id)}
                       onCheckedChange={(checked) => toggleTenant(tenant.id, checked as boolean)}
+                      onClick={(e) => e.stopPropagation()}
                     />
                     <div className="flex-1 min-w-0 grid gap-1">
-                      <Label htmlFor={`tenant-${tenant.id}`} className="font-semibold cursor-pointer truncate">
+                      <Label
+                        htmlFor={`tenant-${tenant.id}`}
+                        className="font-semibold cursor-pointer truncate"
+                        onClick={(e) => e.stopPropagation()}
+                      >
                         {tenant.name}
                       </Label>
                       <div className="flex text-xs text-muted-foreground gap-3">
@@ -405,6 +445,13 @@ export function BillSummary() {
                 const data = generateBillDataForTenant(id);
                 if (!tenant || !data) return null;
 
+                const billingMonth = format(data.billingDate, 'MMMM yyyy');
+                const existingPayment = tenant.paymentHistory?.find(
+                  record => record.billingMonth === billingMonth
+                );
+                const isSynced = existingPayment?.syncedToSheets;
+                const isSyncing = syncingTenants.has(id);
+
                 return (
                   <div key={id} className="flex items-center justify-between p-3 border rounded-lg bg-card shadow-sm">
                     <div>
@@ -414,15 +461,37 @@ export function BillSummary() {
                     <div className="flex gap-2">
                       <Button
                         size="sm"
-                        variant="outline"
+                        variant={isSynced ? "secondary" : "outline"}
                         onClick={() => handleRecordPayment(id)}
+                        disabled={isSynced || isSyncing}
+                        className={cn(!isSynced && !existingPayment && "border-primary text-primary hover:bg-primary/5")}
                       >
-                        <Save className="w-4 h-4 mr-1.5" /> Record
+                        {isSyncing ? (
+                          <>
+                            <span className="flex items-center gap-1.5">
+                              <span className="w-3 h-3 border-2 border-primary border-t-transparent rounded-full animate-spin" />
+                              Syncing...
+                            </span>
+                          </>
+                        ) : isSynced ? (
+                          <>
+                            <CheckSquare className="w-4 h-4 mr-1.5 text-green-500" /> Recorded
+                          </>
+                        ) : existingPayment ? (
+                          <>
+                            <Save className="w-4 h-4 mr-1.5" /> Retry Sync
+                          </>
+                        ) : (
+                          <>
+                            <Save className="w-4 h-4 mr-1.5" /> Record
+                          </>
+                        )}
                       </Button>
                       <Button
                         size="sm"
                         className="bg-[#25D366] hover:bg-[#128C7E] text-white"
                         onClick={() => handleSendClick(id)}
+                        disabled={isSyncing}
                       >
                         Send <MessageSquare className="w-4 h-4 ml-1.5" />
                       </Button>
@@ -444,8 +513,8 @@ export function BillSummary() {
       <Dialog open={!!historyTenantId} onOpenChange={(open) => !open && setHistoryTenantId(null)}>
         <DialogContent className="sm:max-w-2xl">
           <DialogHeader>
-            <DialogTitle>
-              {historyTenantId && tenants.find(t => t.id === historyTenantId)?.name} - Payment History
+            <DialogTitle className="flex items-center gap-2">
+              {historyTenantId && tenants.find(t => t.id === historyTenantId)?.name} - <History className="w-5 h-5 text-muted-foreground" /> Payment History
             </DialogTitle>
           </DialogHeader>
           {historyTenantId && (

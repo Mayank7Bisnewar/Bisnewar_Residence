@@ -119,6 +119,8 @@ function TenantForm({
           <Input
             id="mobileNumber"
             type="tel"
+            inputMode="numeric"
+            pattern="[0-9]*"
             placeholder="10-digit mobile number"
             value={formData.mobileNumber}
             onChange={(e) => setFormData({ ...formData, mobileNumber: e.target.value.replace(/\D/g, '').slice(0, 10) })}
@@ -178,10 +180,12 @@ function TenantForm({
           <Input
             id="monthlyRent"
             type="number"
+            inputMode="numeric"
+            pattern="[0-9]*"
             min="0"
             placeholder="₹0"
             value={formData.monthlyRent}
-            onChange={(e) => setFormData({ ...formData, monthlyRent: e.target.value })}
+            onChange={(e) => setFormData({ ...formData, monthlyRent: e.target.value.replace(/\D/g, '') })}
             className={cn(errors.monthlyRent && 'border-destructive')}
           />
           {errors.monthlyRent && <p className="text-sm text-destructive">{errors.monthlyRent}</p>}
@@ -195,10 +199,12 @@ function TenantForm({
           <Input
             id="waterBill"
             type="number"
+            inputMode="numeric"
+            pattern="[0-9]*"
             min="0"
             placeholder="₹0"
             value={formData.waterBill}
-            onChange={(e) => setFormData({ ...formData, waterBill: e.target.value })}
+            onChange={(e) => setFormData({ ...formData, waterBill: e.target.value.replace(/\D/g, '') })}
             className={cn(errors.waterBill && 'border-destructive')}
           />
           {errors.waterBill && <p className="text-sm text-destructive">{errors.waterBill}</p>}
@@ -434,10 +440,12 @@ export function TenantList({ onNavigateToSummary }: { onNavigateToSummary?: () =
                             <Input
                               id={`elec-${tenant.id}`}
                               type="number"
+                              inputMode="numeric"
+                              pattern="[0-9]*"
                               min="0"
                               placeholder="0"
                               value={electricityUnits || ''}
-                              onChange={(e) => setElectricityUnits(Math.max(0, parseInt(e.target.value) || 0))}
+                              onChange={(e) => setElectricityUnits(Math.max(0, parseInt(e.target.value.replace(/\D/g, '')) || 0))}
                               className="h-9"
                             />
                             {electricityUnits > 0 && (
@@ -458,10 +466,12 @@ export function TenantList({ onNavigateToSummary }: { onNavigateToSummary?: () =
                             <Input
                               id={`extra-${tenant.id}`}
                               type="number"
+                              inputMode="numeric"
+                              pattern="[0-9]*"
                               min="0"
                               placeholder="0"
                               value={extraCharges || ''}
-                              onChange={(e) => setExtraCharges(Math.max(0, parseInt(e.target.value) || 0))}
+                              onChange={(e) => setExtraCharges(Math.max(0, parseInt(e.target.value.replace(/\D/g, '')) || 0))}
                               className="h-9"
                             />
                           </div>

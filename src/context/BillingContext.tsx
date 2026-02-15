@@ -11,7 +11,9 @@ interface BillingContextType {
   addTenant: (tenant: Omit<Tenant, 'id' | 'createdAt' | 'updatedAt'>) => Tenant;
   updateTenant: (id: string, updates: Partial<Omit<Tenant, 'id' | 'createdAt'>>) => void;
   deleteTenant: (id: string) => void;
-  addPaymentRecord: (tenantId: string, record: Omit<PaymentRecord, 'id'>) => void;
+  addPaymentRecord: (tenantId: string, record: Omit<PaymentRecord, 'id'>) => PaymentRecord | void;
+  updatePaymentRecord: (tenantId: string, recordId: string, updates: Partial<PaymentRecord>) => void;
+  deletePaymentRecord: (tenantId: string, recordId: string) => void;
   selectedTenant: Tenant | null;
   selectTenant: (id: string | null) => void;
 
@@ -152,6 +154,25 @@ export function BillingProvider({ children }: { children: React.ReactNode }) {
 
     const updatedHistory = [...(tenant.paymentHistory || []), newRecord];
     updateTenant(tenantId, { paymentHistory: updatedHistory });
+    return newRecord;
+  }, [getTenant, updateTenant]);
+
+  const updatePaymentRecord = useCallback((tenantId: string, recordId: string, updates: Partial<PaymentRecord>) => {
+    const tenant = getTenant(tenantId);
+    if (!tenant) return;
+
+    const updatedHistory = (tenant.paymentHistory || []).map(record =>
+      record.id === recordId ? { ...record, ...updates } : record
+    );
+    updateTenant(tenantId, { paymentHistory: updatedHistory });
+  }, [getTenant, updateTenant]);
+
+  const deletePaymentRecord = useCallback((tenantId: string, recordId: string) => {
+    const tenant = getTenant(tenantId);
+    if (!tenant) return;
+
+    const updatedHistory = (tenant.paymentHistory || []).filter(record => record.id !== recordId);
+    updateTenant(tenantId, { paymentHistory: updatedHistory });
   }, [getTenant, updateTenant]);
 
   const resetBill = useCallback(() => {
@@ -168,6 +189,8 @@ export function BillingProvider({ children }: { children: React.ReactNode }) {
         updateTenant,
         deleteTenant,
         addPaymentRecord,
+        updatePaymentRecord,
+        deletePaymentRecord,
         selectedTenant,
         selectTenant,
         electricityUnits,

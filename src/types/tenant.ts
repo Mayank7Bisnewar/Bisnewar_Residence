@@ -8,6 +8,7 @@ export interface PaymentRecord {
   extraAmount: number;
   electricityUnits: number;
   billingMonth: string; // "January 2024"
+  syncedToSheets?: boolean;
 }
 
 export interface Tenant {
