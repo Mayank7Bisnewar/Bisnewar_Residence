@@ -103,7 +103,7 @@ function AppContent() {
       case 'directory':
         return 'Directory';
       default:
-        return 'Bisnewar Residence';
+        return 'Tenant';
     }
   };
 
@@ -117,7 +117,7 @@ function AppContent() {
               <img src="/home-icon.png" alt="Home" className="w-full h-full object-cover" />
             </div>
             <div>
-              <h1 className="font-display text-xl font-bold text-foreground select-none">Bisnewar Residence</h1>
+              <h1 className="font-display text-xl font-bold text-foreground select-none">TENANT</h1>
               <p className="text-xs text-muted-foreground">
                 {getTabTitle()}
               </p>

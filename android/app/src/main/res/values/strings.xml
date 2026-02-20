@@ -1,7 +1,7 @@
 <?xml version='1.0' encoding='utf-8'?>
 <resources>
-    <string name="app_name">Bisnewar Residence</string>
-    <string name="title_activity_main">Bisnewar Residence</string>
+    <string name="app_name">Tenant</string>
+    <string name="title_activity_main">Tenant</string>
     <string name="package_name">com.rentmanager.pro</string>
     <string name="custom_url_scheme">com.rentmanager.pro</string>
 </resources>
