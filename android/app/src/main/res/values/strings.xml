@@ -5,4 +5,5 @@
     <string name="package_name">com.tenant</string>
     <string name="custom_url_scheme">com.tenant</string>
     <string name="server_client_id">196000772262-ghkitgufdvhr84qkm07ad5iillng7tt9.apps.googleusercontent.com</string>
+    <string name="admob_app_id">ca-app-pub-9145983565028518~7027339708</string>
 </resources>
