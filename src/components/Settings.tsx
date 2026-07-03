@@ -182,14 +182,25 @@ export function Settings() {
                   Sign in to protect your tenant directory and billing history in the cloud.
                 </p>
               </div>
-              <Button
-                size="sm"
-                className="h-9 px-4 rounded-xl font-semibold text-xs bg-primary hover:bg-primary-dark text-white flex items-center gap-1.5 shadow-sm active:scale-[0.98] transition-transform"
-                onClick={loginWithGoogle}
-              >
-                <LogIn className="h-3.5 w-3.5" />
-                Sign In with Google
-              </Button>
+              <div className="flex flex-col gap-2 w-full mt-2">
+                <Button
+                  size="sm"
+                  className="h-9 px-4 rounded-xl font-semibold text-xs bg-primary hover:bg-primary-dark text-white flex items-center justify-center gap-1.5 shadow-sm active:scale-[0.98] transition-transform w-full"
+                  onClick={loginWithGoogle}
+                >
+                  <LogIn className="h-3.5 w-3.5" />
+                  Sign In with Google
+                </Button>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className="h-9 px-4 rounded-xl font-semibold text-xs flex items-center justify-center gap-1.5 shadow-sm active:scale-[0.98] transition-transform w-full text-muted-foreground"
+                  onClick={logout}
+                >
+                  <LogOut className="h-3.5 w-3.5" />
+                  Return to Login Page
+                </Button>
+              </div>
             </CardContent>
           </Card>
         )}

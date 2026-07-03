@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
-import { User, onAuthStateChanged, signInWithPopup, signOut, GoogleAuthProvider, signInWithCredential } from 'firebase/auth';
+import { User, onAuthStateChanged, signInWithPopup, signOut, GoogleAuthProvider, signInWithCredential, signInWithEmailAndPassword, createUserWithEmailAndPassword } from 'firebase/auth';
 import { auth, googleProvider } from '@/lib/firebase';
 import { Capacitor } from '@capacitor/core';
 import { GoogleAuth } from '@codetrix-studio/capacitor-google-auth';
@@ -8,7 +8,13 @@ import { toast } from 'sonner';
 interface AuthContextType {
     user: User | null;
     loading: boolean;
+    isGuest: boolean;
+    tenantAccessKey: string | null;
     loginWithGoogle: () => Promise<void>;
+    loginWithEmail: (email: string, pass: string) => Promise<void>;
+    signUpWithEmail: (email: string, pass: string) => Promise<void>;
+    loginAsGuest: () => void;
+    loginAsTenant: (key: string) => void;
     logout: () => Promise<void>;
 }
 
@@ -17,6 +23,8 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 export function AuthProvider({ children }: { children: React.ReactNode }) {
     const [user, setUser] = useState<User | null>(null);
     const [loading, setLoading] = useState(true);
+    const [isGuest, setIsGuest] = useState<boolean>(() => localStorage.getItem('isGuest') === 'true');
+    const [tenantAccessKey, setTenantAccessKey] = useState<string | null>(() => localStorage.getItem('tenantAccessKey'));
 
     useEffect(() => {
         const unsubscribe = onAuthStateChanged(auth, (user) => {
@@ -42,6 +50,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
                 await signInWithPopup(auth, googleProvider);
             }
             toast.success("Successfully logged in!");
+            
+            // Show interstitial ad after successful login
+            const { showInterstitialAd } = await import('@/lib/admob');
+            showInterstitialAd();
         } catch (error: any) {
             console.error("Login failed:", error);
 
@@ -57,12 +69,52 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         }
     };
 
+    const loginWithEmail = async (email: string, pass: string) => {
+        try {
+            await signInWithEmailAndPassword(auth, email, pass);
+            toast.success("Successfully logged in!");
+            const { showInterstitialAd } = await import('@/lib/admob');
+            showInterstitialAd();
+        } catch (error: any) {
+            console.error("Email login failed:", error);
+            toast.error(`Login failed: ${error.message || 'Unknown error'}`);
+            throw error;
+        }
+    };
+
+    const signUpWithEmail = async (email: string, pass: string) => {
+        try {
+            await createUserWithEmailAndPassword(auth, email, pass);
+            toast.success("Account created successfully!");
+            const { showInterstitialAd } = await import('@/lib/admob');
+            showInterstitialAd();
+        } catch (error: any) {
+            console.error("Signup failed:", error);
+            toast.error(`Signup failed: ${error.message || 'Unknown error'}`);
+            throw error;
+        }
+    };
+
+    const loginAsGuest = () => {
+        localStorage.setItem('isGuest', 'true');
+        setIsGuest(true);
+    };
+
+    const loginAsTenant = (key: string) => {
+        localStorage.setItem('tenantAccessKey', key);
+        setTenantAccessKey(key);
+    };
+
     const logout = async () => {
         try {
             if (Capacitor.isNativePlatform()) {
                 await GoogleAuth.signOut();
             }
             await signOut(auth);
+            localStorage.removeItem('isGuest');
+            localStorage.removeItem('tenantAccessKey');
+            setIsGuest(false);
+            setTenantAccessKey(null);
             toast.success("Logged out successfully.");
         } catch (error) {
             console.error("Logout failed:", error);
@@ -72,7 +124,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     };
 
     return (
-        <AuthContext.Provider value={{ user, loading, loginWithGoogle, logout }}>
+        <AuthContext.Provider value={{ 
+            user, loading, isGuest, tenantAccessKey, 
+            loginWithGoogle, loginWithEmail, signUpWithEmail, 
+            loginAsGuest, loginAsTenant, logout 
+        }}>
             {children}
         </AuthContext.Provider>
     );

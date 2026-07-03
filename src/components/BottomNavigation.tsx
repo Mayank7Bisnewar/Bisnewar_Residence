@@ -26,15 +26,16 @@ interface BottomNavigationProps {
 export function BottomNavigation({ activeTab, onTabChange, onAddClick }: BottomNavigationProps) {
   return (
     <nav
-      className="fixed bottom-0 left-0 right-0 z-50 flex justify-center px-5 overflow-visible"
+      className="fixed bottom-[5px] left-0 right-0 z-50 flex justify-center px-5 overflow-visible"
       style={{ paddingBottom: 'calc(env(safe-area-inset-bottom) + 16px)', overflow: 'visible', background: 'transparent' }}
     >
       {/* Single floating pill bar */}
       <div
         className="flex items-center justify-around h-[58px] w-full max-w-[340px] rounded-full"
         style={{
-          backdropFilter: 'blur(90px) saturate(9)',
-          WebkitBackdropFilter: 'blur(20px) saturate(9)',
+          backdropFilter: 'blur(20px)',
+          WebkitBackdropFilter: 'blur(20px)',
+          background: 'linear-gradient(90deg, #014c9c 0%, #0d2150f4 50%, #014c9c 100%)',
         }}
       >
         {tabs.map((tab) => {
@@ -49,18 +50,21 @@ export function BottomNavigation({ activeTab, onTabChange, onAddClick }: BottomN
                   onTabChange(tab.id);
                 }
               }}
-              className="relative flex items-center justify-center w-10 h-10 tap-highlight"
+              className={cn(
+                "relative flex items-center justify-center tap-highlight",
+                tab.id === 'add' ? 'w-12 h-12' : 'w-10 h-10'
+              )}
             >
               <motion.div
-                animate={{ scale: tab.id === 'add' ? 1.15 : isActive ? 1.1 : 1 }}
+                animate={{ scale: tab.id === 'add' ? 1.05 : isActive ? 1.1 : 1 }}
                 transition={{ type: 'spring', stiffness: 400, damping: 25 }}
                 className={cn(
                   'relative z-0 transition-colors duration-200 flex items-center justify-center',
                   tab.id === 'add'
-                    ? 'w-10 h-10 rounded-lg bg-slate-900 dark:bg-slate-2000 text-white flex items-center justify-center'
+                    ? 'w-12 h-12 rounded-[16px] bg-[#0b1633] text-white flex items-center justify-center shadow-md'
                     : isActive
                       ? 'text-white'
-                      : 'text-muted-foreground'
+                      : 'text-white/60 hover:text-white'
                 )}
               >
                 {tab.icon}
