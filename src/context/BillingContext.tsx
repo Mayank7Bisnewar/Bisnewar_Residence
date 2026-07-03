@@ -99,6 +99,8 @@ export function BillingProvider({ children }: { children: React.ReactNode }) {
     return () => unsubscribe();
   }, [user]);
 
+
+
   const selectedTenant = selectedTenantId ? getTenant(selectedTenantId) || null : null;
 
   // Get current values or defaults
@@ -167,8 +169,7 @@ export function BillingProvider({ children }: { children: React.ReactNode }) {
     }
   }, [selectedTenantId, updateBillingState]);
 
-  // Calculated values
-  const electricityRate = ownerInfo.electricityRate !== undefined ? ownerInfo.electricityRate : 12;
+  const electricityRate = ownerInfo?.electricityRate !== undefined ? ownerInfo.electricityRate : 12;
   const electricityCharges = electricityUnits * electricityRate;
   const totalAmount = selectedTenant
     ? selectedTenant.monthlyRent + electricityCharges + selectedTenant.waterBill + extraCharges
@@ -198,7 +199,7 @@ export function BillingProvider({ children }: { children: React.ReactNode }) {
     const tenant = getTenant(tenantId);
     if (!tenant) return null;
 
-    const rate = ownerInfo.electricityRate !== undefined ? ownerInfo.electricityRate : 12;
+    const rate = ownerInfo?.electricityRate !== undefined ? ownerInfo.electricityRate : 12;
     const state = billingState[tenantId] || { electricityUnits: 0, extraCharges: 0, billingDate: new Date() };
     const elecCharges = state.electricityUnits * rate;
     const total = tenant.monthlyRent + elecCharges + tenant.waterBill + state.extraCharges;
@@ -218,6 +219,30 @@ export function BillingProvider({ children }: { children: React.ReactNode }) {
       billingDate: state.billingDate instanceof Date ? state.billingDate : new Date(state.billingDate),
     };
   }, [getTenant, billingState, ownerInfo]);
+
+  // Sync public views with debounce
+  useEffect(() => {
+    if (!user || isInitialSync.current) return;
+    
+    const timeout = setTimeout(() => {
+      allTenants.forEach(tenant => {
+        if (tenant.status !== 'deleted') {
+          const billData = generateBillDataForTenant(tenant.id);
+          if (billData) {
+            firestoreService.publishPublicTenantView(user.uid, tenant.id, {
+              ...billData,
+              paymentHistory: tenant.paymentHistory || [],
+              ownerName: ownerInfo?.name || '',
+              ownerMobile: ownerInfo?.mobileNumber || '',
+              ownerUpiId: ownerInfo?.upiId || '',
+            });
+          }
+        }
+      });
+    }, 2000);
+
+    return () => clearTimeout(timeout);
+  }, [allTenants, billingState, user, ownerInfo, generateBillDataForTenant]);
 
   const addPaymentRecord = useCallback((tenantId: string, record: Omit<PaymentRecord, 'id'>) => {
     const recordId = crypto.randomUUID();
@@ -295,7 +320,7 @@ export function BillingProvider({ children }: { children: React.ReactNode }) {
       message += `\n *Total Payable Amount: ₹${amount.toLocaleString()}*\n`;
     }
 
-    if (ownerInfo.name || ownerInfo.upiId || ownerInfo.mobileNumber) {
+    if (ownerInfo?.name || ownerInfo?.upiId || ownerInfo?.mobileNumber) {
       message += `\n---\n`;
       if (ownerInfo.name) message += `Landlord: ${ownerInfo.name}\n`;
       if (ownerInfo.upiId) message += `UPI ID: ${ownerInfo.upiId}\n`;

@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
-import { User, Home, Phone, Search, Pencil, History, Trash2 } from 'lucide-react';
+import { User, Home, Phone, Search, Pencil, History, Trash2, Key, Copy, MessageCircle } from 'lucide-react';
+import { toast } from 'sonner';
 import { HistoryView } from '@/components/HistoryView';
 import { useBilling } from '@/context/BillingContext';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -149,6 +150,43 @@ export function TenantDirectory() {
                                             </div>
                                         </div>
                                     </div>
+
+                                    <div className="flex items-center justify-between bg-primary/5 p-2.5 rounded-xl border border-primary/10">
+                                        <div className="flex items-center gap-2">
+                                            <div className="p-1.5 rounded-lg bg-card text-primary shadow-sm">
+                                                <Key className="w-3.5 h-3.5" />
+                                            </div>
+                                            <div className="flex flex-col min-w-0">
+                                                <span className="text-[9px] text-muted-foreground uppercase font-black tracking-widest opacity-70">Access Key</span>
+                                                <span className="font-mono font-semibold text-xs truncate max-w-[120px]">{tenant.id}</span>
+                                            </div>
+                                        </div>
+                                        <Button
+                                            variant="ghost"
+                                            size="sm"
+                                            className="h-8 text-xs font-medium bg-background shadow-sm hover:bg-primary/10 text-primary"
+                                            onClick={() => {
+                                                navigator.clipboard.writeText(tenant.id);
+                                                toast.success("Access key copied to clipboard!");
+                                            }}
+                                        >
+                                            <Copy className="w-3.5 h-3.5 mr-1.5" /> Copy
+                                        </Button>
+                                    </div>
+
+                                    <Button
+                                        variant="outline"
+                                        size="sm"
+                                        className="w-full flex items-center justify-center gap-2 border-primary/20 text-primary hover:bg-primary/10 transition-colors"
+                                        onClick={() => {
+                                            const total = (tenant.monthlyRent || 0) + (tenant.waterBill || 0) + (tenant.electricityCharges || 0) + (tenant.extraCharges || 0);
+                                            const msg = `Hello ${tenant.name},\n\nYour rent bill has been generated/updated.\nTotal Due: ₹${total.toLocaleString()}\n\nPlease open the Tenant App using your access key to view the detailed breakdown and pay.`;
+                                            window.open(`https://wa.me/91${tenant.mobileNumber}?text=${encodeURIComponent(msg)}`, '_blank');
+                                        }}
+                                    >
+                                        <MessageCircle className="w-4 h-4" />
+                                        Send Reminder via WhatsApp
+                                    </Button>
                                 </div>
                             </CardContent>
                         </Card>

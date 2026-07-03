@@ -61,8 +61,7 @@ echo "sdk.dir=$HOME/Library/Android/sdk" > local.properties
 ```
 **Step 3: Note: Requires Java 21**
 ```bash
-JAVA_HOME=/opt/homebrew/opt/openjdk@21/libexec/openjdk.jdk/Contents/Home ./gradlew assembleDebug
-```
+ ```
 
 The generated APK will be located at:
 `android/app/build/outputs/apk/debug/app-debug.apk`

@@ -64,5 +64,20 @@ export const firestoreService = {
                 callback(convertTimestamps(data.billingState || {}));
             }
         });
+    },
+
+    // Public Tenant Views
+    async publishPublicTenantView(landlordUid: string, tenantId: string, data: any) {
+        const viewDocRef = doc(db, "public_tenant_views", tenantId);
+        await setDoc(viewDocRef, { ...data, landlordUid }, { merge: true });
+    },
+
+    async getPublicTenantView(tenantId: string) {
+        const viewDocRef = doc(db, "public_tenant_views", tenantId);
+        const docSnap = await getDoc(viewDocRef);
+        if (docSnap.exists()) {
+            return convertTimestamps(docSnap.data());
+        }
+        return null;
     }
 };
