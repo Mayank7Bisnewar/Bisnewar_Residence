@@ -12,6 +12,7 @@ export interface TenantFormData {
     name: string;
     roomNumber: string;
     mobileNumber: string;
+    joiningDate: string;
     monthlyRent: string;
     waterBill: string;
 }
@@ -20,6 +21,7 @@ const emptyFormData: TenantFormData = {
     name: '',
     roomNumber: '',
     mobileNumber: '',
+    joiningDate: new Date().toISOString().split('T')[0], // Default to today
     monthlyRent: '',
     waterBill: '',
 };
@@ -41,6 +43,7 @@ export function TenantForm({
                 name: initialData.name,
                 roomNumber: initialData.roomNumber,
                 mobileNumber: initialData.mobileNumber,
+                joiningDate: initialData.joiningDate || new Date().toISOString().split('T')[0],
                 monthlyRent: String(initialData.monthlyRent),
                 waterBill: String(initialData.waterBill),
             }
@@ -167,6 +170,20 @@ export function TenantForm({
                     </Button>
                 </div>
                 {errors.mobileNumber && <p className="text-sm text-destructive">{errors.mobileNumber}</p>}
+            </div>
+
+            <div className="space-y-2">
+                <Label htmlFor="joiningDate" className="flex items-center gap-2">
+                    <Home className="w-4 h-4 text-rose-500" />
+                    Joining Date
+                </Label>
+                <Input
+                    id="joiningDate"
+                    name="joiningDate"
+                    type="date"
+                    value={formData.joiningDate}
+                    onChange={(e) => setFormData({ ...formData, joiningDate: e.target.value })}
+                />
             </div>
 
             <div className="grid grid-cols-2 gap-4">

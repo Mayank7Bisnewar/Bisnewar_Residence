@@ -1,8 +1,10 @@
 import React, { useState } from 'react';
-import { User, Home, Phone, Search, Pencil, History, Trash2, Key, Copy, MessageCircle } from 'lucide-react';
+import { User, Home, Phone, Search, Pencil, History, Trash2, Key, Copy, MessageCircle, Bell } from 'lucide-react';
 import { toast } from 'sonner';
 import { HistoryView } from '@/components/HistoryView';
 import { useBilling } from '@/context/BillingContext';
+import { firestoreService } from '@/lib/firestoreService';
+import { getBillingStatus } from '@/lib/billingUtils';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
@@ -11,7 +13,7 @@ import { TenantForm, TenantFormData } from '@/components/TenantForm';
 import { Tenant } from '@/types/tenant';
 
 export function TenantDirectory() {
-    const { allTenants, updateTenant, permanentDeleteTenant } = useBilling();
+    const { allTenants, updateTenant, permanentDeleteTenant, user } = useBilling();
     const [searchQuery, setSearchQuery] = useState('');
     const [editingTenant, setEditingTenant] = useState<Tenant | null>(null);
     const [historyTenantId, setHistoryTenantId] = useState<string | null>(null);
@@ -26,34 +28,64 @@ export function TenantDirectory() {
         tenant.roomNumber.toLowerCase().includes(searchQuery.toLowerCase()) ||
         tenant.mobileNumber.includes(searchQuery);
 
-    const filteredActive = activeTenants.filter(filterFn);
+    const activeWithStatus = activeTenants.map(tenant => ({
+        ...tenant,
+        ...getBillingStatus(tenant.joiningDate, tenant.paymentHistory)
+    }));
+
+    const dueTenants = activeWithStatus.filter(t => t.status === 'OVERDUE' || t.status === 'DUE_SOON');
+    const dueCount = dueTenants.length;
+
+    const filteredActive = activeWithStatus
+        .filter(filterFn)
+        .sort((a, b) => {
+            const statusOrder = { 'OVERDUE': 1, 'DUE_SOON': 2, 'UPCOMING': 3, 'NONE': 4 };
+            if (statusOrder[a.status] !== statusOrder[b.status]) {
+                return statusOrder[a.status] - statusOrder[b.status];
+            }
+            if (a.dueDate && b.dueDate) {
+                return a.dueDate.getTime() - b.dueDate.getTime();
+            }
+            return 0;
+        });
     const filteredDeleted = deletedTenants.filter(filterFn);
 
-    const handleEditTenant = (data: TenantFormData) => {
+    const handleEditTenant = async (data: TenantFormData) => {
         if (editingTenant) {
-            updateTenant(editingTenant.id, {
+            const oldTenant = { ...editingTenant };
+            await updateTenant(editingTenant.id, {
                 name: data.name.trim(),
                 roomNumber: data.roomNumber.trim(),
                 mobileNumber: data.mobileNumber.trim(),
+                joiningDate: data.joiningDate,
                 monthlyRent: parseFloat(data.monthlyRent) || 0,
                 waterBill: parseFloat(data.waterBill) || 0,
             });
             setEditingTenant(null);
+
+            toast.success(`Rent updated for ${data.name.trim()}`, {
+                duration: 10000,
+                action: {
+                    label: 'Undo',
+                    onClick: async () => {
+                        await updateTenant(oldTenant.id, oldTenant);
+                        toast.info("Changes undone.");
+                    }
+                }
+            });
         }
     };
 
     return (
         <div className="flex-1 flex flex-col min-h-0 py-1 gap-2 overflow-visible">
             {/* Header & Search - Fixed */}
-            <div className="flex-none space-y-4">
-
+            <div className="flex-none space-y-3">
                 <div className="relative overflow-visible">
                     <button
                         type="button"
                         className="absolute left-2 top-1/2 -translate-y-1/2 p-1 text-muted-foreground hover:text-primary focus:outline-none focus-visible:ring-2 focus-visible:ring-primary rounded-full z-10"
                         aria-label="Search"
                         onClick={() => {
-                          // Focus the input when button clicked
                           const input = document.querySelector('#tenant-directory-search');
                           if (input) (input as HTMLElement).focus();
                         }}
@@ -95,8 +127,30 @@ export function TenantDirectory() {
                                             <div>
                                                 <h4 className="font-display font-semibold text-lg text-foreground leading-tight">{tenant.name}</h4>
                                                 <div className="flex items-center gap-1.5 mt-0.5">
-                                                    <span className="w-2 h-2 rounded-full bg-green-500 animate-pulse" />
-                                                    <span className="text-[10px] font-extrabold text-muted-foreground uppercase tracking-widest">Active</span>
+                                                    {tenant.status === 'OVERDUE' && (
+                                                        <>
+                                                            <span className="w-2 h-2 rounded-full bg-red-500 animate-pulse" />
+                                                            <span className="text-[10px] font-extrabold text-red-500 uppercase tracking-widest">Overdue</span>
+                                                        </>
+                                                    )}
+                                                    {tenant.status === 'DUE_SOON' && (
+                                                        <>
+                                                            <span className="w-2 h-2 rounded-full bg-orange-500 animate-pulse" />
+                                                            <span className="text-[10px] font-extrabold text-orange-500 uppercase tracking-widest">Due Soon</span>
+                                                        </>
+                                                    )}
+                                                    {tenant.status === 'UPCOMING' && (
+                                                        <>
+                                                            <span className="w-2 h-2 rounded-full bg-green-500" />
+                                                            <span className="text-[10px] font-extrabold text-green-500 uppercase tracking-widest">Upcoming</span>
+                                                        </>
+                                                    )}
+                                                    {tenant.status === 'NONE' && (
+                                                        <>
+                                                            <span className="w-2 h-2 rounded-full bg-emerald-500" />
+                                                            <span className="text-[10px] font-extrabold text-emerald-500 uppercase tracking-widest">Active</span>
+                                                        </>
+                                                    )}
                                                 </div>
                                             </div>
                                         </div>
@@ -151,6 +205,25 @@ export function TenantDirectory() {
                                         </div>
                                     </div>
 
+                                    {tenant.dueDate && (
+                                        <div className="flex items-center justify-between bg-primary/5 p-2.5 rounded-xl border border-primary/10">
+                                            <div className="flex items-center gap-2">
+                                                <div className="p-1.5 rounded-lg bg-card text-primary shadow-sm">
+                                                    <History className="w-3.5 h-3.5" />
+                                                </div>
+                                                <div className="flex flex-col min-w-0">
+                                                    <span className="text-[9px] text-muted-foreground uppercase font-black tracking-widest opacity-70">Next Rent Due</span>
+                                                    <span className="font-semibold text-xs truncate">
+                                                        {new Intl.DateTimeFormat('en-IN', { dateStyle: 'medium' }).format(tenant.dueDate)}
+                                                    </span>
+                                                </div>
+                                            </div>
+                                            {tenant.status === 'OVERDUE' && (
+                                                <span className="text-xs font-bold text-red-500 bg-red-500/10 px-2 py-1 rounded-md">Action Req</span>
+                                            )}
+                                        </div>
+                                    )}
+
                                     <div className="flex items-center justify-between bg-primary/5 p-2.5 rounded-xl border border-primary/10">
                                         <div className="flex items-center gap-2">
                                             <div className="p-1.5 rounded-lg bg-card text-primary shadow-sm">
@@ -173,20 +246,6 @@ export function TenantDirectory() {
                                             <Copy className="w-3.5 h-3.5 mr-1.5" /> Copy
                                         </Button>
                                     </div>
-
-                                    <Button
-                                        variant="outline"
-                                        size="sm"
-                                        className="w-full flex items-center justify-center gap-2 border-primary/20 text-primary hover:bg-primary/10 transition-colors"
-                                        onClick={() => {
-                                            const total = (tenant.monthlyRent || 0) + (tenant.waterBill || 0) + (tenant.electricityCharges || 0) + (tenant.extraCharges || 0);
-                                            const msg = `Hello ${tenant.name},\n\nYour rent bill has been generated/updated.\nTotal Due: ₹${total.toLocaleString()}\n\nPlease open the Tenant App using your access key to view the detailed breakdown and pay.`;
-                                            window.open(`https://wa.me/91${tenant.mobileNumber}?text=${encodeURIComponent(msg)}`, '_blank');
-                                        }}
-                                    >
-                                        <MessageCircle className="w-4 h-4" />
-                                        Send Reminder via WhatsApp
-                                    </Button>
                                 </div>
                             </CardContent>
                         </Card>

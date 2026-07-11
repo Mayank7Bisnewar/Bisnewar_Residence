@@ -66,6 +66,10 @@ echo "sdk.dir=$HOME/Library/Android/sdk" > local.properties
 The generated APK will be located at:
 `android/app/build/outputs/apk/debug/app-debug.apk`
 
+
+
+cd /Users/mayank/projects/Tenant && npm run build && npx cap sync android && cd android && JAVA_HOME="/Applications/Android Studio.app/Contents/jbr/Contents/Home" ./gradlew assembleDebug && ~/Library/Android/sdk/platform-tools/adb install -r app/build/outputs/apk/debug/Tenant.apk
+
 ---
 
 ## Google Sheets Support

@@ -8,6 +8,7 @@ import { BillSummary } from '@/components/BillSummary';
 import { TenantDirectory } from '@/components/TenantDirectory';
 import { Settings } from '@/components/Settings';
 import { UserMenu } from '@/components/UserMenu';
+import { BulkNotifyMenu } from '@/components/BulkNotifyMenu';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { TenantForm, TenantFormData } from '@/components/TenantForm';
 import { useBilling } from '@/context/BillingContext';
@@ -31,6 +32,7 @@ function AppContent() {
       name: data.name.trim(),
       roomNumber: data.roomNumber.trim(),
       mobileNumber: data.mobileNumber.trim(),
+      joiningDate: data.joiningDate,
       monthlyRent: parseFloat(data.monthlyRent) || 0,
       waterBill: parseFloat(data.waterBill) || 0,
       paymentHistory: [],
@@ -204,6 +206,7 @@ function AppContent() {
             </div>
           </div>
           <div className="flex items-center gap-2">
+            <BulkNotifyMenu />
             <UserMenu />
           </div>
         </div>

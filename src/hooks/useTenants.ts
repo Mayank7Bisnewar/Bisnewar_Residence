@@ -80,17 +80,25 @@ export function useTenants() {
     return newTenant;
   }, [updateState]);
 
-  const updateTenant = useCallback((id: string, updates: Partial<Omit<Tenant, 'id' | 'createdAt'>> | ((tenant: Tenant) => Partial<Omit<Tenant, 'id' | 'createdAt'>>)) => {
-    updateState((prev) =>
-      prev.map((tenant) => {
-        if (tenant.id === id) {
-          const finalUpdates = typeof updates === 'function' ? updates(tenant) : updates;
-          return { ...tenant, ...finalUpdates, updatedAt: new Date().toISOString() };
+  const updateTenant = useCallback(async (id: string, updates: Partial<Omit<Tenant, 'id' | 'createdAt'>> | ((tenant: Tenant) => Partial<Omit<Tenant, 'id' | 'createdAt'>>)) => {
+    return new Promise<void>((resolve) => {
+      setLocalTenants((prev) => {
+        const updatedTenants = prev.map((tenant) => {
+          if (tenant.id === id) {
+            const finalUpdates = typeof updates === 'function' ? updates(tenant) : updates;
+            return { ...tenant, ...finalUpdates, updatedAt: new Date().toISOString() };
+          }
+          return tenant;
+        });
+        if (user) {
+          firestoreService.saveTenants(user.uid, updatedTenants).then(() => resolve());
+        } else {
+          resolve();
         }
-        return tenant;
-      })
-    );
-  }, [updateState]);
+        return updatedTenants;
+      });
+    });
+  }, [user, setLocalTenants]);
 
   const deleteTenant = useCallback((id: string) => {
     updateState((prev) =>
