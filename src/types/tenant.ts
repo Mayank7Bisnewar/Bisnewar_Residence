@@ -16,6 +16,7 @@ export interface Tenant {
   name: string;
   roomNumber: string;
   mobileNumber: string;
+  joiningDate?: string;
   monthlyRent: number;
   waterBill: number;
   paymentHistory: PaymentRecord[];
@@ -38,6 +39,8 @@ export interface BillData {
   extraCharges: number;
   totalAmount: number;
   billingDate: Date;
+  joiningDate?: string;
+  dueDate?: Date;
 }
 
 export interface OwnerInfo {

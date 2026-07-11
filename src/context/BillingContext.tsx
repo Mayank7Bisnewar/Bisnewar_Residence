@@ -6,6 +6,7 @@ import { useOwnerInfo } from '@/hooks/useOwnerInfo';
 import { useMessageSettings } from '@/hooks/useMessageSettings';
 import { useAuth } from './AuthContext';
 import { firestoreService } from '@/lib/firestoreService';
+import { getBillingStatus } from '@/lib/billingUtils';
 
 const ELECTRICITY_RATE = 12; // ₹12 per unit
 
@@ -14,7 +15,7 @@ interface BillingContextType {
   tenants: Tenant[];
   allTenants: Tenant[];
   addTenant: (tenant: Omit<Tenant, 'id' | 'createdAt' | 'updatedAt'>) => Tenant;
-  updateTenant: (id: string, updates: Partial<Omit<Tenant, 'id' | 'createdAt'>>) => void;
+  updateTenant: (id: string, updates: Partial<Omit<Tenant, 'id' | 'createdAt'>> | ((tenant: Tenant) => Partial<Omit<Tenant, 'id' | 'createdAt'>>)) => Promise<void>;
   deleteTenant: (id: string) => void;
   permanentDeleteTenant: (id: string) => void;
   reorderTenants: (tenants: Tenant[]) => void;
@@ -191,6 +192,8 @@ export function BillingProvider({ children }: { children: React.ReactNode }) {
       extraCharges,
       totalAmount,
       billingDate,
+      joiningDate: selectedTenant.joiningDate,
+      dueDate: getBillingStatus(selectedTenant.joiningDate, selectedTenant.paymentHistory).dueDate || undefined,
     };
   }, [selectedTenant, electricityUnits, electricityCharges, extraCharges, totalAmount, billingDate, electricityRate]);
 
@@ -217,12 +220,34 @@ export function BillingProvider({ children }: { children: React.ReactNode }) {
       extraCharges: state.extraCharges,
       totalAmount: total || 0,
       billingDate: state.billingDate instanceof Date ? state.billingDate : new Date(state.billingDate),
+      joiningDate: tenant.joiningDate,
+      dueDate: getBillingStatus(tenant.joiningDate, tenant.paymentHistory).dueDate || undefined,
     };
   }, [getTenant, billingState, ownerInfo]);
 
-  // Sync public views with debounce
+  // Sync public views immediately when tenant details, payments, or owner info changes
   useEffect(() => {
-    if (!user || isInitialSync.current) return;
+    if (!user) return;
+    
+    allTenants.forEach(tenant => {
+      if (tenant.status !== 'deleted') {
+        const billData = generateBillDataForTenant(tenant.id);
+        if (billData) {
+          firestoreService.publishPublicTenantView(user.uid, tenant.id, {
+            ...billData,
+            paymentHistory: tenant.paymentHistory || [],
+            ownerName: ownerInfo?.name || '',
+            ownerMobile: ownerInfo?.mobileNumber || '',
+            ownerUpiId: ownerInfo?.upiId || '',
+          });
+        }
+      }
+    });
+  }, [allTenants, user, ownerInfo, generateBillDataForTenant]);
+
+  // Sync public views with a debounce when typing billing inputs (units, extra charges)
+  useEffect(() => {
+    if (!user) return;
     
     const timeout = setTimeout(() => {
       allTenants.forEach(tenant => {
@@ -239,10 +264,10 @@ export function BillingProvider({ children }: { children: React.ReactNode }) {
           }
         }
       });
-    }, 2000);
+    }, 1000);
 
     return () => clearTimeout(timeout);
-  }, [allTenants, billingState, user, ownerInfo, generateBillDataForTenant]);
+  }, [billingState, user, ownerInfo, generateBillDataForTenant]);
 
   const addPaymentRecord = useCallback((tenantId: string, record: Omit<PaymentRecord, 'id'>) => {
     const recordId = crypto.randomUUID();

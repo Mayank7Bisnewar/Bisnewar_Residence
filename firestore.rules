@@ -19,10 +19,17 @@ service cloud.firestore {
       allow get: if true;
       // Do not allow listing all documents
       allow list: if false;
-      // Only the landlord who owns this view can update/delete it
-      allow write: if request.auth != null && request.auth.uid == request.resource.data.landlordUid;
-      // For updates and deletes, check existing resource
-      allow update, delete: if request.auth != null && request.auth.uid == resource.data.landlordUid;
+      // Only the landlord who owns this view can create/delete it
+      allow create, delete: if request.auth != null && request.auth.uid == request.resource.data.landlordUid;
+      // Allow landlord to update, or allow tenant to update ONLY their fcmToken
+      allow update: if (request.auth != null && request.auth.uid == resource.data.landlordUid) 
+                    || request.resource.data.diff(resource.data).affectedKeys().hasOnly(['fcmToken']);
+    }
+
+    // Secure notification requests
+    match /notification_requests/{reqId} {
+      allow create: if request.auth != null && request.auth.uid == request.resource.data.landlordUid;
+      allow read, update, delete: if false;
     }
     
     // Default deny all other collections

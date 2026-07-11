@@ -66,6 +66,22 @@ export const firestoreService = {
         });
     },
 
+    // Sync Owner Info
+    async saveOwnerInfo(uid: string, ownerInfo: any) {
+        const userDocRef = doc(db, "users", uid);
+        await setDoc(userDocRef, { ownerInfo }, { merge: true });
+    },
+
+    listenToOwnerInfo(uid: string, callback: (ownerInfo: any) => void) {
+        const userDocRef = doc(db, "users", uid);
+        return onSnapshot(userDocRef, (docSnap) => {
+            if (docSnap.exists()) {
+                const data = docSnap.data();
+                callback(data.ownerInfo || null);
+            }
+        });
+    },
+
     // Public Tenant Views
     async publishPublicTenantView(landlordUid: string, tenantId: string, data: any) {
         const viewDocRef = doc(db, "public_tenant_views", tenantId);
@@ -79,5 +95,31 @@ export const firestoreService = {
             return convertTimestamps(docSnap.data());
         }
         return null;
+    },
+
+    listenToPublicTenantView(tenantId: string, callback: (data: any) => void) {
+        const viewDocRef = doc(db, "public_tenant_views", tenantId);
+        return onSnapshot(viewDocRef, (docSnap) => {
+            if (docSnap.exists()) {
+                callback(convertTimestamps(docSnap.data()));
+            } else {
+                callback(null);
+            }
+        });
+    },
+
+    async updatePublicTenantToken(tenantId: string, fcmToken: string) {
+        const viewDocRef = doc(db, "public_tenant_views", tenantId);
+        await setDoc(viewDocRef, { fcmToken }, { merge: true });
+    },
+
+    async requestPushNotification(tenantId: string, landlordUid: string, message: string) {
+        const reqRef = doc(collection(db, "notification_requests"));
+        await setDoc(reqRef, {
+            tenantId,
+            landlordUid,
+            message,
+            timestamp: new Date()
+        });
     }
 };

@@ -31,6 +31,8 @@ import { Textarea } from '@/components/ui/textarea';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { useToast } from '@/hooks/use-toast';
 import { GoogleSheetsService } from '@/services/GoogleSheetsService';
+import { firestoreService } from "@/lib/firestoreService";
+
 
 export function Settings() {
   const {
@@ -38,6 +40,8 @@ export function Settings() {
     setOwnerInfo,
     messageSettings,
     setMessageSettings,
+    allTenants,
+    generateBillDataForTenant
   } = useBilling();
   const { user, loginWithGoogle, logout } = useAuth();
   const { toast } = useToast();
@@ -67,13 +71,41 @@ export function Settings() {
   }, [isMessageOpen, messageSettings]);
 
   const handleSaveProfile = () => {
-    setOwnerInfo(localOwnerInfo);
-    GoogleSheetsService.setScriptUrl(sheetsUrl);
-    setIsProfileOpen(false);
-    toast({
-      title: 'Profile Saved',
-      description: 'Your owner and bank profile details have been updated.',
-    });
+    try {
+      setOwnerInfo(localOwnerInfo);
+      GoogleSheetsService.setScriptUrl(sheetsUrl);
+      
+      // Immediately publish/sync new owner info to Firestore for all tenants
+      if (user && localOwnerInfo) {
+        firestoreService.saveOwnerInfo(user.uid, localOwnerInfo);
+        
+        // Push the update directly to all tenant public views in Firestore instantly
+        allTenants.forEach(async (tenant) => {
+          if (tenant.status !== 'deleted') {
+            const billData = generateBillDataForTenant(tenant.id);
+            if (billData) {
+              await firestoreService.publishPublicTenantView(user.uid, tenant.id, {
+                ...billData,
+                paymentHistory: tenant.paymentHistory || [],
+                ownerName: localOwnerInfo.name || '',
+                ownerMobile: localOwnerInfo.mobileNumber || '',
+                ownerUpiId: localOwnerInfo.upiId || '',
+              });
+            }
+          }
+        });
+      }
+      
+      setIsProfileOpen(false);
+      toast({
+        title: 'Profile Saved',
+        description: 'Your owner and bank profile details have been updated.',
+      });
+    } catch (e) {
+      console.error("Failed to save profile:", e);
+      // Fallback close modal in case of crash
+      setIsProfileOpen(false);
+    }
   };
 
   const handleSaveMessageSettings = () => {

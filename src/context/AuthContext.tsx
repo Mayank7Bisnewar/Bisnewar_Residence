@@ -32,12 +32,24 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             setLoading(false);
         });
 
+        // Safety timeout: if Firebase auth doesn't resolve in 5s, stop loading anyway
+        const timeout = setTimeout(() => {
+            setLoading(false);
+        }, 5000);
+
         // Initialize GoogleAuth for native
         if (Capacitor.isNativePlatform()) {
-            GoogleAuth.initialize();
+            try {
+                GoogleAuth.initialize();
+            } catch (e) {
+                console.warn('GoogleAuth init failed (non-critical):', e);
+            }
         }
 
-        return () => unsubscribe();
+        return () => {
+            unsubscribe();
+            clearTimeout(timeout);
+        };
     }, []);
 
     const loginWithGoogle = async () => {
